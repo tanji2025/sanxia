@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>三峽職人：手路尋蹤</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght=400;700;900&display=swap');
+    
+    body { 
+      font-family: 'Noto Serif TC', serif; 
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      position: relative;
+      overscroll-behavior-y: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      position: relative;
+      z-index: 10;
+    }
+
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .card-glow-hinoki { box-shadow: 0 0 20px rgba(245, 158, 11, 0.4), inset 0 0 20px rgba(245, 158, 11, 0.2); border-color: #f59e0b; }
+    .card-glow-ebony { box-shadow: 0 0 20px rgba(148, 163, 184, 0.4), inset 0 0 20px rgba(148, 163, 184, 0.2); border-color: #94a3b8; }
+    .card-glow-camphor { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4), inset 0 0 20px rgba(239, 68, 68, 0.2); border-color: #ef4444; }
+    .card-glow-teak { box-shadow: 0 0 20px rgba(132, 204, 22, 0.4), inset 0 0 20px rgba(132, 204, 22, 0.2); border-color: #84cc16; }
+
+    .scanlines {
+      position: fixed; inset: 0; pointer-events: none; z-index: 50;
+      background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+      background-size: 100% 4px;
+    }
+
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .prize-glow { box-shadow: 0 0 30px rgba(245, 158, 11, 0.5); animation: pulseGlow 2s infinite; }
+    @keyframes pulseGlow { 0% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.4); } 50% { box-shadow: 0 0 40px rgba(245, 158, 11, 0.8); } 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.4); } }
+  </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+    import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDNzakbQU0u4tXk57msmr7NtjGqe1Cxow0",
+      authDomain: "sanxia-6aecc.firebaseapp.com",
+      projectId: "sanxia-6aecc",
+      storageBucket: "sanxia-6aecc.firebasestorage.app",
+      messagingSenderId: "318481458533",
+      appId: "1:318481458533:web:f5eb1fa1b8ccfbc6e1ed8c",
+      measurementId: "G-B3T8DHKC7X"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const analytics = getAnalytics(app);
+
+    window.logGAEvent = (eventName, params = {}) => {
+      try { logEvent(analytics, eventName, params); } catch (e) {}
+    };
+
+    window.executeSafeDraw = async (userData) => {
+      const invRef = doc(db, "settings", "inventory");
+      const questColl = collection(db, "quests");
+
+      try {
+        const finalPrize = await runTransaction(db, async (transaction) => {
+          const invDoc = await transaction.get(invRef);
+          let sanxiaStock = 0, artisanStock = 0, craftStock = 0;
+
+          if (invDoc.exists()) {
+            sanxiaStock = invDoc.data().sanxia || 0;
+            artisanStock = invDoc.data().artisan || 0;
+            craftStock = invDoc.data().craft || 0;
+          }
+
+          const rand = Math.random();
+          let drawnPrize = { id: 'prize_4', name: '尋蹤獎：專屬體驗優惠', type: 'digital' };
+
+          if (rand <= 0.002 && sanxiaStock > 0) {
+            drawnPrize = { id: 'prize_1', name: '三峽獎：木雕時鐘', type: 'physical' };
+            transaction.update(invRef, { sanxia: sanxiaStock - 1 });
+          } else if (rand <= 0.006 && artisanStock > 0) {
+            drawnPrize = { id: 'prize_2', name: '職人獎：木雕圓盤', type: 'physical' };
+            transaction.update(invRef, { artisan: artisanStock - 1 });
+          } else if (rand <= 0.036 && craftStock > 0) {
+            drawnPrize = { id: 'prize_3', name: '手路獎：木雕胸針', type: 'physical' };
+            transaction.update(invRef, { craft: craftStock - 1 });
+          }
+
+          return drawnPrize;
+        });
+
+        const newDocRef = await addDoc(questColl, {
+          userId: userData.userId,
+          resultClass: userData.result,
+          prize: finalPrize.name,
+          prizeType: finalPrize.type,
+          voucherCode: userData.voucherCode,
+          drawTime: new Date().toISOString()
+        });
+
+        return { prize: finalPrize, docId: newDocRef.id };
+
+      } catch (error) {
+        const fallbackPrize = { id: 'prize_4', name: '尋蹤獎：專屬體驗優惠', type: 'digital' };
+        const fallbackRef = await addDoc(questColl, {
+          userId: userData.userId,
+          resultClass: userData.result,
+          prize: fallbackPrize.name,
+          prizeType: fallbackPrize.type,
+          voucherCode: userData.voucherCode,
+          drawTime: new Date().toISOString()
+        });
+        return { prize: fallbackPrize, docId: fallbackRef.id };
+      }
+    };
+  </script>
+
+  <script>
+    const questions = [
+      {
+        title: "走入木作工坊，哪種木材的質感最讓你移不開目光？",
+        options: [
+          { text: "清新淡雅的淺色木紋", type: "hinoki", imgUrl: "assets/q1-hinoki.jpg" },
+          { text: "沉穩內斂的深色質地", type: "ebony", imgUrl: "assets/q1-ebony.jpg" },
+          { text: "充滿張力的狂野紋理", type: "camphor", imgUrl: "assets/q1-camphor.jpg" },
+          { text: "溫潤厚實的百搭木色", type: "teak", imgUrl: "assets/q1-teak.jpg" }
+        ]
+      },
+      {
+        title: "準備刻下第一刀時，你的直覺會如何進行？",
+        options: [
+          { text: "先靜心感受木頭紋理", type: "hinoki", imgUrl: "assets/q2-hinoki.jpg" },
+          { text: "目標明確果斷切入", type: "ebony", imgUrl: "assets/q2-ebony.jpg" },
+          { text: "不拘小節揮灑創意", type: "camphor", imgUrl: "assets/q2-camphor.jpg" },
+          { text: "步步為營謹慎刻劃", type: "teak", imgUrl: "assets/q2-teak.jpg" }
+        ]
+      },
+      {
+        title: "作品完成的那一刻，最讓你感到滿足的是？",
+        options: [
+          { text: "感受空氣中的天然木香", type: "hinoki", imgUrl: "assets/q3-hinoki.jpg" },
+          { text: "欣賞無可挑剔的細節", type: "ebony", imgUrl: "assets/q3-ebony.jpg" },
+          { text: "看木屑飛舞的創作痛快", type: "camphor", imgUrl: "assets/q3-camphor.jpg" },
+          { text: "雙手撫摸溫潤的觸感", type: "teak", imgUrl: "assets/q3-teak.jpg" }
+        ]
+      }
+    ];
+
+    const results = {
+      hinoki: {
+        class: "檜木匠人", title: "Lv.1 溫潤的檜木匠人", attr: "細膩 / 療癒 / 順應",
+        stats: { str: 40, agi: 60, int: 90, focus: 95 },
+        description: "你擁有細膩的心思與高專注力，懂得順應自然。如同珍貴的檜木，越是經歷時間刻劃，越能散發出溫潤且療癒人心的獨特香氣。",
+        style: "card-glow-hinoki text-amber-500", btn: "bg-amber-600 hover:bg-amber-500",
+        barColor: "bg-amber-500", imgUrl: "assets/res-hinoki.jpg"
+      },
+      ebony: {
+        class: "黑檀匠人", title: "Lv.1 俐落的黑檀匠人", attr: "沉穩 / 果決 / 堅毅",
+        stats: { str: 85, agi: 70, int: 75, focus: 85 },
+        description: "你行事果斷、判斷力強，面對困難毫不退縮。如同質地堅硬的黑檀木，需要龐大力量與技巧才能駕馭，一旦成型便擁有不朽價值。",
+        style: "card-glow-ebony text-slate-300", btn: "bg-slate-600 hover:bg-slate-500",
+        barColor: "bg-slate-400", imgUrl: "assets/res-ebony.jpg"
+      },
+      camphor: {
+        class: "樟木匠人", title: "Lv.1 奔放的樟木匠人", attr: "熱情 / 狂野 / 傳統",
+        stats: { str: 95, agi: 50, int: 60, focus: 80 },
+        description: "你充滿熱情，大刀闊斧不拘小節，渾身散發強烈個人魅力。如同氣味濃烈的樟木，是傳統工藝中不可或缺、最能鎮住全場的存在。",
+        style: "card-glow-camphor text-red-500", btn: "bg-red-700 hover:bg-red-600",
+        barColor: "bg-red-500", imgUrl: "assets/res-camphor.jpg"
+      },
+      teak: {
+        class: "柚木匠人", title: "Lv.1 踏實的柚木匠人", attr: "耐久 / 溫暖 / 質樸",
+        stats: { str: 75, agi: 60, int: 70, focus: 90 },
+        description: "你個性踏實穩重，給人滿滿安全感，是團隊中最可靠的後盾。如同百搭且耐久的柚木，經得起時間考驗，默默在角落散發溫暖光澤。",
+        style: "card-glow-teak text-lime-500", btn: "bg-lime-700 hover:bg-lime-600",
+        barColor: "bg-lime-500", imgUrl: "assets/res-teak.jpg"
+      }
+    };
+
+    let step = 0;
+    let scores = { hinoki: 0, ebony: 0, camphor: 0, teak: 0 };
+    let isProcessing = false;
+    let calcInterval = null;
+
+    let userData = {
+      userId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      voucherCode: '',
+      result: null,
+      redeemed: false,
+      prize: null,
+      prizeType: null
+    };
+
+    function generateVoucherCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = 'WOOD-';
+      for (let i = 0; i < 5; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+
+    function loadLocalData() {
+      try {
+        const saved = localStorage.getItem('sanxia_wood_quest_v4');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.result && parsed.voucherCode) {
+            userData = parsed;
+            step = questions.length + 1; 
+            return true;
+          }
+        }
+      } catch(e) {}
+      return false;
+    }
+
+    function saveLocalData() {
+      localStorage.setItem('sanxia_wood_quest_v4', JSON.stringify(userData));
+    }
+
+    function clearLocalData() {
+      localStorage.removeItem('sanxia_wood_quest_v4');
+      userData = {
+        userId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+        voucherCode: '',
+        result: null,
+        redeemed: false,
+        prize: null,
+        prizeType: null
+      };
+      step = 0;
+      scores = { hinoki: 0, ebony: 0, camphor: 0, teak: 0 };
+      render();
+    }
+
+    function handleStart() {
+      if (window.logGAEvent) window.logGAEvent('start_quest');
+      window.scrollTo(0, 0);
+      step = 1;
+      scores = { hinoki: 0, ebony: 0, camphor: 0, teak: 0 };
+      render();
+    }
+
+    function handleAnswer(type) {
+      if (isProcessing) return;
+      isProcessing = true;
+      scores[type]++;
+      
+      if (step < questions.length) {
+        step++;
+        render();
+        setTimeout(() => { isProcessing = false; }, 300);
+      } else {
+        calculateResult();
+      }
+    }
+
+    function calculateResult() {
+      let maxScore = -1;
+      let possibleTypes = [];
+      
+      ['hinoki', 'ebony', 'camphor', 'teak'].forEach(type => {
+        if (scores[type] > maxScore) {
+          maxScore = scores[type];
+          possibleTypes = [type];
+        } else if (scores[type] === maxScore) {
+          possibleTypes.push(type);
+        }
+      });
+
+      userData.result = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
+      userData.voucherCode = generateVoucherCode();
+      
+      step = questions.length + 1;
+      renderCalculating();
+      saveLocalData();
+
+      setTimeout(() => {
+        if (calcInterval) clearInterval(calcInterval);
+        renderResult();
+        isProcessing = false;
+      }, 2500);
+    }
+
+    async function triggerDraw() {
+      if (window.logGAEvent) window.logGAEvent('click_draw');
+      const btn = document.getElementById('draw-btn');
+      if(btn) {
+        btn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 尋蹤開獎中...`;
+        btn.classList.add('opacity-80', 'pointer-events-none');
+      }
+
+      if (window.executeSafeDraw) {
+        const drawRes = await window.executeSafeDraw(userData);
+        userData.redeemed = true;
+        userData.prize = drawRes.prize.name;
+        userData.prizeType = drawRes.prize.type;
+        saveLocalData();
+      }
+
+      renderResult();
+    }
+
+    function renderLanding() {
+      window.scrollTo(0, 0);
+      const app = document.getElementById('app');
+      
+      app.innerHTML = `
+        <div class="flex-1 w-full relative min-h-screen flex items-center justify-center">
+          <div class="absolute inset-0 z-0">
+            <img src="assets/bg-landing.jpg" alt="Woodworking Background" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMxZTI5M2IiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzQ3NTU2OSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ogbfkurrlvbHlg488L3RleHQ+PC9zdmc+'" class="w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-slate-950/80"></div>
+          </div>
+
+          <div class="flex-1 flex flex-col items-center justify-center p-6 fade-in w-full relative z-10">
+            <div class="text-center max-w-md w-full p-8 shadow-2xl bg-slate-900/90 border border-slate-700 rounded-xl mx-auto relative z-10 overflow-hidden">
+              
+              <p class="text-[10px] text-amber-500 font-bold tracking-widest mb-4">SANXIA ARTISAN QUEST</p>
+              <h1 class="text-3xl sm:text-4xl font-black text-slate-100 mb-2 leading-tight">
+                三峽職人<br/>
+                <span class="text-amber-600 text-4xl sm:text-5xl mt-2 block">手路尋蹤</span>
+              </h1>
+              
+              <div class="my-6 sm:my-8 h-px bg-gradient-to-r from-transparent via-slate-500 to-transparent"></div>
+              
+              <p class="text-slate-300 mb-8 leading-relaxed text-sm sm:text-base">
+                來到三峽，不只走馬看花。<br/>
+                憑直覺點選 3 張圖片，尋找你的職人性格。<br/>
+                完成鑑定即可獲取<strong class="text-amber-400">專屬抽獎憑證</strong>，<br/>
+                有機會免費帶走精緻實體木雕作品！
+              </p>
+              
+              <button onclick="handleStart()" class="w-full bg-slate-800 border-2 border-slate-500 text-slate-200 font-bold py-4 hover:bg-slate-700 hover:border-amber-600 hover:text-amber-400 transition-all active:scale-95 flex items-center justify-center gap-2 tracking-widest outline-none rounded-md">
+                START QUEST
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
+            </div>
+            
+            <div class="mt-12 text-[10px] text-slate-500 tracking-wider pb-4 text-center px-4 leading-relaxed relative z-10">
+              本活動由 新北市青年局 2026 Impact Star 青年影響力啟動賽 專案支持<br/>與 蒔蒔刻刻工作室 共同合作推廣
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderQuestion() {
+      window.scrollTo(0, 0);
+      const app = document.getElementById('app');
+      const q = questions[step - 1];
+      
+      let optionsHtml = `
+        <div class="grid grid-cols-2 gap-3 sm:gap-4 w-full">
+          ${q.options.map(opt => `
+            <button onclick="handleAnswer('${opt.type}')" class="img-option group relative w-full aspect-square rounded-xl overflow-hidden border-2 border-slate-700 outline-none flex flex-col hover:border-amber-500 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-all active:scale-95">
+              <img src="${opt.imgUrl}" alt="${opt.text}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMzMzQxNTUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lnJbniYc8L3RleHQ+PC9zdmc+'" class="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-500 group-hover:scale-110" />
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/30 to-transparent z-10"></div>
+              <div class="mt-auto relative z-20 p-3 text-center w-full bg-slate-950/80 border-t border-slate-800">
+                <span class="text-slate-200 font-bold tracking-wider group-hover:text-amber-400 text-sm sm:text-base transition-colors">
+                  ${opt.text}
+                </span>
+              </div>
+            </button>
+          `).join('')}
+        </div>
+      `;
+
+      app.innerHTML = `
+        <div class="flex-1 flex flex-col p-4 sm:p-6 fade-in w-full max-w-lg mx-auto">
+          <div class="flex justify-between items-center mb-6 pt-2 shrink-0">
+            <span class="text-sm font-bold text-amber-500 tracking-widest bg-slate-900/80 px-3 py-1 rounded-full border border-amber-900/50">STAGE ${step} / ${questions.length}</span>
+            <div class="flex gap-1.5">
+              ${Array.from({length: questions.length}).map((_, i) => `<div class="h-2 w-6 rounded-full ${i < step ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-slate-800'} transition-all duration-300"></div>`).join('')}
+            </div>
+          </div>
+          
+          <div class="flex-1 flex flex-col justify-start pb-8">
+            <h2 class="text-xl sm:text-2xl font-black text-slate-100 mb-6 leading-relaxed text-center drop-shadow-md tracking-wide">
+              ${q.title}
+            </h2>
+            <div class="flex flex-col w-full">
+              ${optionsHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCalculating() {
+      window.scrollTo(0, 0);
+      const app = document.getElementById('app');
+      const flavorTexts = ["讀取木紋脈絡...", "雕刻靈魂形狀...", "凝聚匠人精神...", "生成抽獎憑證..."];
+      let textIdx = 0;
+      
+      app.innerHTML = `
+        <div class="flex-1 flex flex-col items-center justify-center p-6 text-center fade-in w-full max-w-md mx-auto min-h-[60vh]">
+          <div class="w-16 h-16 border-4 border-slate-700 border-t-amber-500 rounded-full animate-spin mb-8"></div>
+          <h2 class="text-xl font-bold tracking-widest text-slate-200 mb-3">正在分析靈魂屬性</h2>
+          <p id="calc-text" class="text-amber-500 text-sm tracking-widest font-bold h-5">${flavorTexts[0]}</p>
+        </div>
+      `;
+
+      calcInterval = setInterval(() => {
+        textIdx = (textIdx + 1) % flavorTexts.length;
+        const el = document.getElementById('calc-text');
+        if(el) el.innerText = flavorTexts[textIdx];
+      }, 600);
+    }
+
+    function renderResult() {
+      window.scrollTo(0, 0);
+      const res = results[userData.result];
+      const app = document.getElementById('app');
+      
+      const statBar = (label, val, colorClass) => `
+        <div class="flex items-center gap-3 text-xs mb-1.5">
+          <span class="text-slate-400 w-16 text-right flex-shrink-0">${label}</span>
+          <div class="flex-1 h-1.5 bg-slate-800 rounded-full relative overflow-hidden">
+            <div class="absolute top-0 left-0 h-full ${colorClass}" style="width: ${val}%"></div>
+          </div>
+          <span class="text-slate-300 w-6 text-right flex-shrink-0">${val}</span>
+        </div>
+      `;
+
+      let actionUI = '';
+      
+      if (!userData.redeemed) {
+        actionUI = `
+          <div class="bg-slate-800 border border-slate-600 rounded-lg p-5 shadow-lg relative overflow-hidden mt-6">
+            <div class="absolute top-0 left-0 w-1 h-full ${res.btn}"></div>
+            
+            <div class="flex flex-col items-center justify-center mb-4 pt-2">
+              <svg class="text-amber-500 mb-2 animate-bounce" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>
+              <h3 class="font-bold text-slate-100 text-base tracking-wider mb-1">🎟️ 專屬抽獎憑證 (待開獎)</h3>
+              <p class="text-slate-400 text-xs">序號：${userData.voucherCode}</p>
+            </div>
+            
+            <button id="draw-btn" onclick="triggerDraw()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-black py-4 rounded-md tracking-widest text-base shadow-[0_0_15px_rgba(217,119,6,0.4)] transition-all outline-none flex items-center justify-center gap-2 mb-4">
+               👉 立即點擊開獎
+            </button>
+
+            <div class="text-[11px] text-slate-400 leading-relaxed border-t border-slate-700/60 pt-3 mt-2 text-center">
+              ⚠️ 領獎必備條件：憑此遊戲截圖和追蹤 IG (帳號：<span class="text-amber-400 font-bold">shi.ke.studio</span>)<br/>
+              ※ 主辦單位保有隨時修改及終止本活動之權利。
+            </div>
+          </div>
+        `;
+      } else {
+        let isPhysical = userData.prizeType === 'physical';
+        let prizeColor = isPhysical ? 'text-yellow-400 prize-glow' : 'text-amber-400';
+
+        actionUI = `
+          <div class="bg-slate-900 border border-slate-600 rounded-lg p-6 shadow-2xl relative overflow-hidden text-center mt-6">
+             <div class="${prizeColor} mb-3 flex justify-center">
+               ${isPhysical 
+                 ? `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>`
+                 : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></svg>`
+               }
+             </div>
+             
+             <h3 class="font-black ${prizeColor} text-lg mb-2 tracking-wider leading-relaxed px-2 py-1 rounded bg-slate-800 border border-slate-700">${userData.prize}</h3>
+             
+             <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs leading-relaxed text-slate-300 text-left my-4 space-y-2">
+               <p class="font-bold text-slate-200">🎉 兌獎說明與必備條件：</p>
+               <p>憑此遊戲截圖和追蹤 IG (帳號：<span class="text-amber-400 font-bold">shi.ke.studio</span>)，私訊「蒔蒔刻刻工作室」粉絲專頁或 LINE，職人將會協助您安排專屬獎品的領取與體驗事宜！</p>
+             </div>
+
+             <div class="flex gap-2 mb-4">
+               <button onclick="window.open('https://www.instagram.com/shi.ke.studio/', '_blank')" class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3 rounded shadow-lg tracking-wider text-xs transition-all flex justify-center items-center gap-1">
+                 前往 IG 追蹤
+               </button>
+             </div>
+
+             <p class="text-slate-500 text-[11px] mb-1">憑證序號：${userData.voucherCode}</p>
+             <p class="text-slate-500 text-[10px] mt-3 border-t border-slate-800 pt-2">※ 主辦單位保有隨時修改及終止本活動之權利。</p>
+          </div>
+        `;
+      }
+
+      app.innerHTML = `
+        <div class="flex-1 py-8 px-4 fade-in flex flex-col items-center w-full mx-auto">
+          
+          <div id="character-card-export-wrap" class="w-full bg-slate-950 p-2 sm:p-4 mb-2 flex justify-center" style="max-width: 400px;">
+            <div class="w-full ${res.style} bg-slate-900 border-2 rounded-lg p-1 relative mx-auto">
+              <div class="w-full aspect-[16/9] bg-slate-800 relative flex items-center justify-center border border-slate-700/50 mb-4 overflow-hidden rounded-t-md">
+                  <img src="${res.imgUrl}" alt="${res.class}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMxZTI5M2IiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzQ3NTU2OSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ogbfkurrlvbHlg488L3RleHQ+PC9zdmc+'" class="absolute inset-0 w-full h-full object-cover scale-[1.08] origin-center z-0" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent z-10"></div>
+              </div>
+              
+              <div class="px-4 sm:px-5 pb-5 relative z-20">
+                <div class="inline-block px-2 py-0.5 border border-slate-500 rounded text-[10px] tracking-widest mb-3 text-slate-300 bg-slate-900/50">${res.attr}</div>
+                <h1 class="text-xl sm:text-2xl font-black text-slate-100 mb-4 leading-tight">${res.title}</h1>
+                
+                <div class="bg-slate-950/80 p-3 rounded border border-slate-800 mb-4">
+                   ${statBar('力量 STR', res.stats.str, res.barColor)}
+                   ${statBar('敏捷 AGI', res.stats.agi, res.barColor)}
+                   ${statBar('智力 INT', res.stats.int, res.barColor)}
+                   ${statBar('專注 FOC', res.stats.focus, res.barColor)}
+                </div>
+
+                <p class="text-slate-300 text-xs sm:text-sm leading-relaxed mb-2 text-justify">
+                  ${res.description}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="w-full px-2" style="max-width: 380px;">
+            ${actionUI}
+            
+            ${!userData.redeemed ? `
+            <div class="text-center mt-8 pb-8">
+              <button onclick="clearLocalData()" class="text-slate-600 text-[11px] hover:text-slate-400 transition-colors tracking-widest outline-none py-2 px-4">
+                [ 放棄憑證並重新測試 ]
+              </button>
+            </div>
+            ` : '<div class="pb-12"></div>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function render() {
+      if (step === 0) {
+        renderLanding();
+      } else if (step > 0 && step <= questions.length) {
+        renderQuestion();
+      }
+    }
+
+    window.onload = () => { 
+      const hasData = loadLocalData();
+      if (hasData) {
+        renderResult(); 
+      } else {
+        renderLanding(); 
+      }
+    };
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-200 antialiased font-sans selection:bg-amber-500/30">
+  <div class="scanlines"></div>
+  <div id="app"></div>
+</body>
+</html>
