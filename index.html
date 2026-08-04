@@ -181,28 +181,28 @@
 
     const results = {
       hinoki: {
-        class: "檜木匠人", title: "Lv.1 溫潤的檜木匠人", attr: "細膩 / 療癒 / 順應",
+        class: "檜木匠人", title: "溫潤的檜木匠人", attr: "細膩 / 療癒 / 順應",
         stats: { str: 40, agi: 60, int: 90, focus: 95 },
         description: "你擁有細膩的心思與高專注力，懂得順應自然。如同珍貴的檜木，越是經歷時間刻劃，越能散發出溫潤且療癒人心的獨特香氣。",
         style: "card-glow-hinoki text-amber-500", btn: "bg-amber-600 hover:bg-amber-500",
         barColor: "bg-amber-500", imgUrl: "assets/res-hinoki.jpg"
       },
       ebony: {
-        class: "黑檀匠人", title: "Lv.1 俐落的黑檀匠人", attr: "沉穩 / 果決 / 堅毅",
+        class: "黑檀匠人", title: "俐落的黑檀匠人", attr: "沉穩 / 果決 / 堅毅",
         stats: { str: 85, agi: 70, int: 75, focus: 85 },
         description: "你行事果斷、判斷力強，面對困難毫不退縮。如同質地堅硬的黑檀木，需要龐大力量與技巧才能駕馭，一旦成型便擁有不朽價值。",
         style: "card-glow-ebony text-slate-300", btn: "bg-slate-600 hover:bg-slate-500",
         barColor: "bg-slate-400", imgUrl: "assets/res-ebony.jpg"
       },
       camphor: {
-        class: "樟木匠人", title: "Lv.1 奔放的樟木匠人", attr: "熱情 / 狂野 / 傳統",
+        class: "樟木匠人", title: "奔放的樟木匠人", attr: "熱情 / 狂野 / 傳統",
         stats: { str: 95, agi: 50, int: 60, focus: 80 },
         description: "你充滿熱情，大刀闊斧不拘小節，渾身散發強烈個人魅力。如同氣味濃烈的樟木，是傳統工藝中不可或缺、最能鎮住全場的存在。",
         style: "card-glow-camphor text-red-500", btn: "bg-red-700 hover:bg-red-600",
         barColor: "bg-red-500", imgUrl: "assets/res-camphor.jpg"
       },
       teak: {
-        class: "柚木匠人", title: "Lv.1 踏實的柚木匠人", attr: "耐久 / 溫暖 / 質樸",
+        class: "柚木匠人", title: "踏實的柚木匠人", attr: "耐久 / 溫暖 / 質樸",
         stats: { str: 75, agi: 60, int: 70, focus: 90 },
         description: "你個性踏實穩重，給人滿滿安全感，是團隊中最可靠的後盾。如同百搭且耐久的柚木，經得起時間考驗，默默在角落散發溫暖光澤。",
         style: "card-glow-teak text-lime-500", btn: "bg-lime-700 hover:bg-lime-600",
@@ -351,20 +351,6 @@
             btn.innerHTML = `👉 立即點擊開獎`;
             btn.classList.remove('opacity-80', 'pointer-events-none');
           }
-        }
-      }
-    }
-
-    function toggleDesc() {
-      const textEl = document.getElementById('desc-text');
-      const arrowEl = document.getElementById('desc-arrow');
-      if (textEl && arrowEl) {
-        if (textEl.classList.contains('line-clamp-2')) {
-          textEl.classList.remove('line-clamp-2');
-          arrowEl.style.transform = 'rotate(180deg)';
-        } else {
-          textEl.classList.add('line-clamp-2');
-          arrowEl.style.transform = 'rotate(0deg)';
         }
       }
     }
@@ -567,14 +553,9 @@
                 </div>
 
                 <div class="flex flex-col items-center">
-                  <!-- 解析文字套用 line-clamp-2 達成露兩行的效果 -->
-                  <p id="desc-text" class="text-slate-300 text-sm leading-relaxed mb-4 text-justify px-2 line-clamp-2">
+                  <p class="text-slate-300 text-sm leading-relaxed mb-4 text-justify px-2">
                     ${res.description}
                   </p>
-                  <button id="desc-toggle-btn" onclick="toggleDesc()" class="text-slate-400 bg-slate-800/50 hover:bg-slate-800 px-4 py-2 rounded-full text-xs font-bold outline-none flex items-center gap-2 border border-slate-700 transition-colors">
-                    <span>閱讀專屬職人解析</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-300" id="desc-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                  </button>
                 </div>
               </div>
             </div>
