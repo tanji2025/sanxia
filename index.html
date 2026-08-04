@@ -80,9 +80,15 @@
     };
 
     window.executeSafeDraw = async (userData) => {
-      const currentUser = auth.currentUser;
+      let currentUser = auth.currentUser;
+      
       if (!currentUser) {
-        throw new Error("身分驗證連線中，請稍候再試。");
+        try {
+          const userCredential = await signInAnonymously(auth);
+          currentUser = userCredential.user;
+        } catch (authError) {
+          throw new Error("身分驗證失敗，請確認網路環境 (" + authError.code + ")");
+        }
       }
       
       const actualUid = currentUser.uid;
