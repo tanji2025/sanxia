@@ -53,7 +53,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
     import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-analytics.js";
     import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app-check.js";
 
@@ -73,18 +74,29 @@
       isTokenAutoRefreshEnabled: true
     });
     const db = getFirestore(app);
+    const auth = getAuth(app);
     const analytics = getAnalytics(app);
+
+    signInAnonymously(auth).then((userCredential) => {
+      window.userData.userId = userCredential.user.uid;
+    }).catch(() => {});
 
     window.logGAEvent = (eventName, params = {}) => {
       try { logEvent(analytics, eventName, params); } catch (e) {}
     };
 
     window.executeSafeDraw = async (userData) => {
+      if (!userData.userId) return null;
       const invRef = doc(db, "settings", "inventory");
-      const questColl = collection(db, "quests");
+      const userQuestRef = doc(db, "quests", userData.userId);
 
       try {
         const finalPrize = await runTransaction(db, async (transaction) => {
+          const existingQuest = await transaction.get(userQuestRef);
+          if (existingQuest.exists()) {
+            throw new Error("EXISTS");
+          }
+
           const invDoc = await transaction.get(invRef);
           let sanxiaStock = 0, artisanStock = 0, craftStock = 0;
 
@@ -111,7 +123,7 @@
           return drawnPrize;
         });
 
-        const newDocRef = await addDoc(questColl, {
+        await setDoc(userQuestRef, {
           userId: userData.userId,
           resultClass: userData.result,
           prize: finalPrize.name,
@@ -120,19 +132,10 @@
           drawTime: new Date().toISOString()
         });
 
-        return { prize: finalPrize, docId: newDocRef.id };
+        return { prize: finalPrize, docId: userData.userId };
 
       } catch (error) {
-        const fallbackPrize = { id: 'prize_4', name: '尋蹤獎：專屬體驗優惠', type: 'digital' };
-        const fallbackRef = await addDoc(questColl, {
-          userId: userData.userId,
-          resultClass: userData.result,
-          prize: fallbackPrize.name,
-          prizeType: fallbackPrize.type,
-          voucherCode: userData.voucherCode,
-          drawTime: new Date().toISOString()
-        });
-        return { prize: fallbackPrize, docId: fallbackRef.id };
+        return null;
       }
     };
   </script>
@@ -204,8 +207,8 @@
     let isProcessing = false;
     let calcInterval = null;
 
-    let userData = {
-      userId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+    window.userData = {
+      userId: '',
       voucherCode: '',
       result: null,
       redeemed: false,
@@ -228,7 +231,7 @@
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.result && parsed.voucherCode) {
-            userData = parsed;
+            window.userData = parsed;
             step = questions.length + 1; 
             return true;
           }
@@ -238,13 +241,14 @@
     }
 
     function saveLocalData() {
-      localStorage.setItem('sanxia_wood_quest_v4', JSON.stringify(userData));
+      localStorage.setItem('sanxia_wood_quest_v4', JSON.stringify(window.userData));
     }
 
     function clearLocalData() {
       localStorage.removeItem('sanxia_wood_quest_v4');
-      userData = {
-        userId: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      const currentUserId = window.userData.userId;
+      window.userData = {
+        userId: currentUserId,
         voucherCode: '',
         result: null,
         redeemed: false,
@@ -291,8 +295,8 @@
         }
       });
 
-      userData.result = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
-      userData.voucherCode = generateVoucherCode();
+      window.userData.result = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
+      window.userData.voucherCode = generateVoucherCode();
       
       step = questions.length + 1;
       renderCalculating();
@@ -314,11 +318,18 @@
       }
 
       if (window.executeSafeDraw) {
-        const drawRes = await window.executeSafeDraw(userData);
-        userData.redeemed = true;
-        userData.prize = drawRes.prize.name;
-        userData.prizeType = drawRes.prize.type;
-        saveLocalData();
+        const drawRes = await window.executeSafeDraw(window.userData);
+        if (drawRes) {
+          window.userData.redeemed = true;
+          window.userData.prize = drawRes.prize.name;
+          window.userData.prizeType = drawRes.prize.type;
+          saveLocalData();
+        } else {
+          alert("系統異常或您已抽取過獎勵！");
+          btn.innerHTML = `👉 立即點擊開獎`;
+          btn.classList.remove('opacity-80', 'pointer-events-none');
+          return;
+        }
       }
 
       renderResult();
@@ -428,7 +439,7 @@
 
     function renderResult() {
       window.scrollTo(0, 0);
-      const res = results[userData.result];
+      const res = results[window.userData.result];
       const app = document.getElementById('app');
       
       const statBar = (label, val, colorClass) => `
@@ -443,7 +454,7 @@
 
       let actionUI = '';
       
-      if (!userData.redeemed) {
+      if (!window.userData.redeemed) {
         actionUI = `
           <div class="bg-slate-800 border border-slate-600 rounded-lg p-5 shadow-lg relative overflow-hidden mt-6">
             <div class="absolute top-0 left-0 w-1 h-full ${res.btn}"></div>
@@ -451,11 +462,11 @@
             <div class="flex flex-col items-center justify-center mb-4 pt-2">
               <svg class="text-amber-500 mb-2 animate-bounce" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>
               <h3 class="font-bold text-slate-100 text-base tracking-wider mb-1">🎟️ 專屬抽獎憑證 (待開獎)</h3>
-              <p class="text-slate-400 text-xs">序號：${userData.voucherCode}</p>
+              <p class="text-slate-400 text-xs">序號：${window.userData.voucherCode}</p>
             </div>
             
             <button id="draw-btn" onclick="triggerDraw()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-black py-4 rounded-md tracking-widest text-base shadow-[0_0_15px_rgba(217,119,6,0.4)] outline-none flex items-center justify-center gap-2 mb-4">
-               👉 立即點擊開獎
+                👉 立即點擊開獎
             </button>
 
             <div class="text-[11px] text-slate-400 leading-relaxed border-t border-slate-700/60 pt-3 mt-2 text-center">
@@ -465,7 +476,7 @@
           </div>
         `;
       } else {
-        let isPhysical = userData.prizeType === 'physical';
+        let isPhysical = window.userData.prizeType === 'physical';
         let prizeColor = isPhysical ? 'text-yellow-400 prize-glow' : 'text-amber-400';
 
         actionUI = `
@@ -477,7 +488,7 @@
                }
              </div>
              
-             <h3 class="font-black ${prizeColor} text-lg mb-2 tracking-wider leading-relaxed px-2 py-1 rounded bg-slate-800 border border-slate-700">${userData.prize}</h3>
+             <h3 class="font-black ${prizeColor} text-lg mb-2 tracking-wider leading-relaxed px-2 py-1 rounded bg-slate-800 border border-slate-700">${window.userData.prize}</h3>
              
              <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs leading-relaxed text-slate-300 text-left my-4 space-y-2">
                <p class="font-bold text-slate-200">🎉 兌獎說明與必備條件：</p>
@@ -490,7 +501,7 @@
                </button>
              </div>
 
-             <p class="text-slate-500 text-[11px] mb-1">憑證序號：${userData.voucherCode}</p>
+             <p class="text-slate-500 text-[11px] mb-1">憑證序號：${window.userData.voucherCode}</p>
              <p class="text-slate-500 text-[10px] mt-3 border-t border-slate-800 pt-2">※ 主辦單位保有隨時修改及終止本活動之權利。</p>
           </div>
         `;
@@ -527,7 +538,7 @@
           <div class="w-full px-2" style="max-width: 380px;">
             ${actionUI}
             
-            ${!userData.redeemed ? `
+            ${!window.userData.redeemed ? `
             <div class="text-center mt-8 pb-8">
               <button onclick="clearLocalData()" class="text-slate-600 text-[11px] hover:text-slate-400 tracking-widest outline-none py-2 px-4">
                 [ 放棄憑證並重新測試 ]
