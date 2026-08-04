@@ -80,15 +80,22 @@
     };
 
     window.executeSafeDraw = async (userData) => {
-      if (!userData.userId) return null;
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("身分驗證連線中，請稍候再試。");
+      }
+      
+      const actualUid = currentUser.uid;
+      userData.userId = actualUid;
+
       const invRef = doc(db, "settings", "inventory");
-      const userQuestRef = doc(db, "quests", userData.userId);
+      const userQuestRef = doc(db, "quests", actualUid);
 
       try {
         const finalPrize = await runTransaction(db, async (transaction) => {
           const existingQuest = await transaction.get(userQuestRef);
           if (existingQuest.exists()) {
-            throw new Error("EXISTS");
+            throw new Error("您已經抽取過專屬獎勵囉！");
           }
 
           const invDoc = await transaction.get(invRef);
@@ -118,7 +125,7 @@
         });
 
         await setDoc(userQuestRef, {
-          userId: userData.userId,
+          userId: actualUid,
           resultClass: userData.result,
           prize: finalPrize.name,
           prizeType: finalPrize.type,
@@ -126,10 +133,10 @@
           drawTime: new Date().toISOString()
         });
 
-        return { prize: finalPrize, docId: userData.userId };
+        return { prize: finalPrize, docId: actualUid };
 
       } catch (error) {
-        return null;
+        throw error;
       }
     };
   </script>
@@ -312,21 +319,21 @@
       }
 
       if (window.executeSafeDraw) {
-        const drawRes = await window.executeSafeDraw(window.userData);
-        if (drawRes) {
+        try {
+          const drawRes = await window.executeSafeDraw(window.userData);
           window.userData.redeemed = true;
           window.userData.prize = drawRes.prize.name;
           window.userData.prizeType = drawRes.prize.type;
           saveLocalData();
-        } else {
-          alert("系統異常或您已抽取過獎勵！");
-          btn.innerHTML = `👉 立即點擊開獎`;
-          btn.classList.remove('opacity-80', 'pointer-events-none');
-          return;
+          renderResult();
+        } catch (error) {
+          alert("錯誤回報：" + error.message);
+          if(btn) {
+            btn.innerHTML = `👉 立即點擊開獎`;
+            btn.classList.remove('opacity-80', 'pointer-events-none');
+          }
         }
       }
-
-      renderResult();
     }
 
     function renderLanding() {
