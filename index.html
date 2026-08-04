@@ -39,12 +39,6 @@
     .card-glow-camphor { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4), inset 0 0 20px rgba(239, 68, 68, 0.2); border-color: #ef4444; }
     .card-glow-teak { box-shadow: 0 0 20px rgba(132, 204, 22, 0.4), inset 0 0 20px rgba(132, 204, 22, 0.2); border-color: #84cc16; }
 
-    .scanlines {
-      position: fixed; inset: 0; pointer-events: none; z-index: 50;
-      background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-      background-size: 100% 4px;
-    }
-
     button { -webkit-tap-highlight-color: transparent; }
 
     .prize-glow { box-shadow: 0 0 30px rgba(245, 158, 11, 0.5); animation: pulseGlow 2s infinite; }
@@ -343,7 +337,7 @@
         <div class="flex-1 w-full relative min-h-screen flex items-center justify-center">
           <div class="absolute inset-0 z-0">
             <img src="assets/bg-landing.jpg" alt="Woodworking Background" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMxZTI5M2IiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzQ3NTU2OSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ogbfkurrlvbHlg488L3RleHQ+PC9zdmc+'" class="w-full h-full object-cover" />
-            <div class="absolute inset-0 bg-slate-950/80"></div>
+            <div class="absolute inset-0 bg-slate-950/40"></div>
           </div>
 
           <div class="flex-1 flex flex-col items-center justify-center p-6 fade-in w-full relative z-10">
@@ -384,8 +378,8 @@
           ${q.options.map(opt => `
             <button onclick="handleAnswer('${opt.type}')" class="relative w-full aspect-square rounded-xl overflow-hidden border-2 border-slate-700 outline-none flex flex-col bg-slate-800">
               <img src="${opt.imgUrl}" alt="${opt.text}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMzMzQxNTUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lnJbniYc8L3RleHQ+PC9zdmc+'" class="absolute inset-0 w-full h-full object-cover z-0" />
-              <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/30 to-transparent z-10"></div>
-              <div class="mt-auto relative z-20 p-3 text-center w-full bg-slate-950/80 border-t border-slate-800">
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 to-transparent z-10"></div>
+              <div class="mt-auto relative z-20 p-3 text-center w-full bg-slate-950/70 border-t border-slate-800">
                 <span class="text-slate-200 font-bold tracking-wider text-sm sm:text-base">
                   ${opt.text}
                 </span>
@@ -514,7 +508,7 @@
             <div class="w-full ${res.style} bg-slate-900 border-2 rounded-lg p-1 relative mx-auto">
               <div class="w-full aspect-[16/9] bg-slate-800 relative flex items-center justify-center border border-slate-700/50 mb-4 overflow-hidden rounded-t-md">
                   <img src="${res.imgUrl}" alt="${res.class}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMxZTI5M2IiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzQ3NTU2OSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7ogbfkurrlvbHlg488L3RleHQ+PC9zdmc+'" class="absolute inset-0 w-full h-full object-cover scale-[1.08] origin-center z-0" />
-                  <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent z-10"></div>
+                  <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent z-10"></div>
               </div>
               
               <div class="px-4 sm:px-5 pb-5 relative z-20">
@@ -569,7 +563,6 @@
   </script>
 </head>
 <body class="bg-slate-950 text-slate-200 antialiased font-sans selection:bg-amber-500/30">
-  <div class="scanlines"></div>
   <div id="app"></div>
 </body>
 </html>
