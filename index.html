@@ -104,6 +104,7 @@
           if (existingQuest.exists()) {
             const data = existingQuest.data();
             return {
+              id: 'prize_history',
               name: data.prize,
               type: data.prizeType,
               isAlreadyDrawn: true
