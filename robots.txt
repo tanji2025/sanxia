@@ -1,0 +1,5 @@
+# robots.txt
+# 阻擋所有搜尋引擎與爬蟲爬取此網站
+
+User-agent: *
+Disallow: /
